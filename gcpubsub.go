@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"cloud.google.com/go/pubsub"
-	"github.com/pkg/errors"
 )
 
 type gcPubSub struct {
@@ -38,8 +37,10 @@ func NewGCPubSub(opts Options) PubSubClient {
 func (ps *gcPubSub) Publish(opts PublishOptions) {
 	data, err := json.Marshal(opts.Message)
 	if err != nil {
-		log.Print(errors.Wrap(err, "Err converting msg: "))
+		ps.Logger.Error(err)
 	}
+
+	start := time.Now()
 
 	topic := createTopicIfNotExists(ps, opts.Topic)
 
@@ -50,8 +51,15 @@ func (ps *gcPubSub) Publish(opts PublishOptions) {
 	})
 
 	if _, err := resp.Get(ctx); err != nil {
-		log.Print(errors.Wrap(err, "Err get publish result: "))
+		ps.Logger.Error(err)
 	}
+
+	ps.Logger.WithFields(map[string]interface{}{
+		"client":   "gcloud",
+		"duration": time.Since(start),
+		"topic":    opts.Topic,
+		"message":  opts.Message,
+	}).Info("Published")
 }
 
 func createTopicIfNotExists(ps *gcPubSub, topicID string) *pubsub.Topic {
@@ -64,7 +72,7 @@ func createTopicIfNotExists(ps *gcPubSub, topicID string) *pubsub.Topic {
 	defer cancel()
 	tExist, err := topic.Exists(ctx)
 	if err != nil {
-		log.Print(errors.Wrap(err, "Err check if topic exist:"))
+		ps.Logger.Error(err)
 	}
 	if tExist {
 		return topic
@@ -72,7 +80,7 @@ func createTopicIfNotExists(ps *gcPubSub, topicID string) *pubsub.Topic {
 
 	topic, err = ps.client.CreateTopic(ctx, topicID)
 	if err != nil {
-		log.Print(err, errors.Wrap(err, "Create topic err"))
+		ps.Logger.Error(err)
 	}
 
 	return topic

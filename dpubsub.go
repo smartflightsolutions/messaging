@@ -1,6 +1,6 @@
 package messaging
 
-import "log"
+import "time"
 
 type devPubSub struct {
 	Options
@@ -14,5 +14,11 @@ func NewDevPubSub(opts Options) PubSubClient {
 }
 
 func (ps *devPubSub) Publish(opts PublishOptions) {
-	log.Printf("PubSub publishing to topicID %s, msg %v", opts.Topic, opts.Message)
+	start := time.Now()
+	ps.Logger.WithFields(map[string]interface{}{
+		"client":   "dev",
+		"duration": time.Since(start),
+		"topic":    opts.Topic,
+		"message":  opts.Message,
+	}).Info("Published")
 }
